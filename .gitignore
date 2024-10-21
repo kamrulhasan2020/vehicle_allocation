@@ -1,0 +1,50 @@
+# Python-related files
+*.py[cod]
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env/
+env/
+.venv/
+
+# PyCharm project files
+.idea/
+
+# FastAPI-specific
+*.log
+*.db
+*.sqlite3
+instance/
+uploads/
+*.pid
+
+# Byte-compiled / optimized / DLL files
+*.py[cod]
+
+# Distribution / packaging
+.Python
+*.spec
+
+# Pytest cache
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Environment variables file
+.env
+
+# macOS-specific
+.DS_Store
+
+# Windows-specific
+Thumbs.db
+
