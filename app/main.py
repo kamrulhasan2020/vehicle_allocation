@@ -1,7 +1,35 @@
 from fastapi import FastAPI
+from typing import List
+from .models import AllocationModel, AllocationResponseModel, AllocationUpdateModel, FilterModel
+from .crud import (
+    create_allocation,
+    update_allocation,
+    delete_allocation,
+    get_allocation_history,
+)
 
-app = FastAPI(title="Vehicle Allocation System", description="API for managing vehicle allocations for employees", version="1.0")
+app = FastAPI()
 
-@app.get("/")
-async def hello():
-    return {"response": "Hi"}
+
+@app.post("/allocate/")
+async def allocate_vehicle(allocation: AllocationModel) -> str:
+    allocation = await create_allocation(allocation)
+    return allocation
+
+
+@app.put("/allocate/{allocation_id}/", response_model=bool)
+async def modify_allocation(allocation_id: str, update_data: AllocationUpdateModel):
+    result = await update_allocation(allocation_id, update_data)
+    return result
+
+
+@app.delete("/allocate/{allocation_id}/", response_model=bool)
+async def remove_allocation(allocation_id: str):
+    result = await delete_allocation(allocation_id)
+    return result
+
+
+@app.post("/history/", response_model=List[AllocationResponseModel])
+async def fetch_allocation_history(filters: FilterModel):
+    history = await get_allocation_history(filters)
+    return history
