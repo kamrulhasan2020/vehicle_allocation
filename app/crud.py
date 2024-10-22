@@ -6,12 +6,17 @@ from bson import ObjectId
 from pymongo import ASCENDING
 
 from .database import allocations_collection, redis
-from .models import AllocationModel, AllocationUpdateModel
+from .models import (
+    AllocationModel,
+    AllocationUpdateModel,
+    PaginatedResponse,
+    CreateResponseModel,
+)
 from .utils import CustomJSONEncoder
 
 
 # Helper to retrieve allocation by vehicle and date
-async def get_allocation_by_vehicle_date(vehicle_id: int, allocation_date: date):
+async def get_allocation_by_vehicle_date(vehicle_id: str, allocation_date: date):
     # Create cache key
     cache_key = f"vehicle:{vehicle_id}:date:{allocation_date}"
 
@@ -50,7 +55,7 @@ async def create_allocation(allocation: AllocationModel):
     # Invalidate Redis cache for this vehicle and date
     cache_key = f"vehicle:{allocation.vehicle_id}:date:{allocation.allocation_date}"
     await redis.delete(cache_key)
-    return str(result.inserted_id)
+    return CreateResponseModel(id=str(result.inserted_id))
 
 
 # Update allocation (only before the allocation date)
@@ -134,12 +139,27 @@ async def get_allocation_history(
     elif end_date:
         query["allocation_date"] = {"$lte": end_date}
 
-    history = []
-    async for allocation in (
-        allocations_collection.find(query)
-        .sort("allocation_date", ASCENDING)
-        .skip(skip)
-        .limit(limit)
-    ):
-        history.append(allocation)
-    return history
+        # Use aggregation to count and fetch results
+    pipeline = [
+        {"$match": query},  # Filter based on query
+        {
+            "$facet": {  # Use facet to separate counting and fetching
+                "count": [{"$count": "total"}],  # Count total matching documents
+                "data": [{"$skip": skip}, {"$limit": limit}],  # Paginate results
+            }
+        },
+    ]
+
+    result = await allocations_collection.aggregate(pipeline).to_list(length=None)
+
+    # Extract total count and data
+    total_count = result[0]["count"][0]["total"] if result and result[0]["count"] else 0
+    history = result[0]["data"]
+    print("------------")
+    print(history)
+    # Determine if there's a next page
+    has_more = (skip + limit) < total_count
+
+    return PaginatedResponse(
+        data=history, total=total_count, skip=skip, limit=limit, has_more=has_more
+    )

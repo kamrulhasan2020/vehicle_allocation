@@ -5,8 +5,9 @@ from typing import List
 
 from .models import (
     AllocationModel,
-    AllocationResponseModel,
     AllocationUpdateModel,
+    PaginatedResponse,
+    CreateResponseModel,
 )
 from .crud import (
     create_allocation,
@@ -19,26 +20,25 @@ from .crud import (
 app = FastAPI()
 
 
-@app.post("/allocate/")
-async def allocate_vehicle(allocation: AllocationModel) -> str:
+@app.post("/allocate/", status_code=201, response_model=CreateResponseModel)
+async def allocate_vehicle(allocation: AllocationModel):
     allocation = await create_allocation(allocation)
     return allocation
 
 
-@app.patch("/allocate/{allocation_id}/", response_model=bool)
+@app.patch("/allocate/{allocation_id}/", response_model=AllocationUpdateModel)
 async def modify_allocation(allocation_id: str, update_data: AllocationUpdateModel):
-    result = await update_allocation(allocation_id, update_data)
-    return result
+    await update_allocation(allocation_id, update_data)
+    return update_data
 
 
-@app.delete("/allocate/{allocation_id}/", response_model=bool)
+@app.delete("/allocate/{allocation_id}/", status_code=204)
 async def remove_allocation(allocation_id: str):
-    result = await delete_allocation(allocation_id)
-    return result
+    await delete_allocation(allocation_id)
 
 
 # Get allocation history with filters
-@app.get("/history/", response_model=List[AllocationResponseModel])
+@app.get("/history/", response_model=PaginatedResponse)
 async def fetch_allocation_history(
     employee_id: str = Query(None),
     vehicle_id: str = Query(None),
