@@ -19,7 +19,6 @@ from .crud import (
 app = FastAPI()
 
 
-
 @app.post("/allocate/")
 async def allocate_vehicle(allocation: AllocationModel) -> str:
     allocation = await create_allocation(allocation)
@@ -46,7 +45,9 @@ async def fetch_allocation_history(
     start_date: date = Query(None),
     end_date: date = Query(None),
     skip: int = Query(0, ge=0),  # starting point for pagination
-    limit: int = Query(10, ge=1)  # number of items per page
+    limit: int = Query(10, ge=1),  # number of items per page
 ):
-    history = await get_allocation_history(employee_id, vehicle_id, start_date, end_date, skip, limit)
+    history = await get_allocation_history(
+        employee_id, vehicle_id, start_date, end_date, skip, limit
+    )
     return history

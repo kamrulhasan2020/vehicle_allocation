@@ -25,8 +25,11 @@ async def get_allocation_by_vehicle_date(vehicle_id: int, allocation_date: date)
     )
     # Cache the result in Redis
     if allocation:
-        await redis.set(cache_key, json.dumps(allocation,cls=CustomJSONEncoder), ex=3600)  # Set cache expiry for 1 hour
+        await redis.set(
+            cache_key, json.dumps(allocation, cls=CustomJSONEncoder), ex=3600
+        )  # Set cache expiry for 1 hour
     return allocation
+
 
 # Create allocation
 async def create_allocation(allocation: AllocationModel):
@@ -56,7 +59,9 @@ async def update_allocation(allocation_id: str, update_data: AllocationUpdateMod
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
 
-    if allocation["allocation_date"] <= datetime.combine(datetime.now(timezone.utc).date(), datetime.min.time()):
+    if allocation["allocation_date"] <= datetime.combine(
+        datetime.now(timezone.utc).date(), datetime.min.time()
+    ):
         raise HTTPException(
             status_code=400, detail="Cannot update past or current date allocations"
         )
@@ -72,10 +77,14 @@ async def update_allocation(allocation_id: str, update_data: AllocationUpdateMod
             {"_id": ObjectId(allocation_id)}, {"$set": update_data}
         )
     # Invalidate Redis cache for the old and new dates
-    old_cache_key = f"vehicle:{allocation['vehicle_id']}:date:{allocation['allocation_date']}"
+    old_cache_key = (
+        f"vehicle:{allocation['vehicle_id']}:date:{allocation['allocation_date']}"
+    )
     await redis.delete(old_cache_key)
     if "allocation_date" in update_data:
-        new_cache_key = f"vehicle:{allocation['vehicle_id']}:date:{update_data['allocation_date']}"
+        new_cache_key = (
+            f"vehicle:{allocation['vehicle_id']}:date:{update_data['allocation_date']}"
+        )
         await redis.delete(new_cache_key)
     return True
 
@@ -86,25 +95,29 @@ async def delete_allocation(allocation_id: str):
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
 
-    if allocation["allocation_date"] <= datetime.combine(datetime.now(timezone.utc).date(), datetime.min.time()):
+    if allocation["allocation_date"] <= datetime.combine(
+        datetime.now(timezone.utc).date(), datetime.min.time()
+    ):
         raise HTTPException(
             status_code=400, detail="Cannot delete past or current date allocations"
         )
 
     await allocations_collection.delete_one({"_id": ObjectId(allocation_id)})
     # Invalidate Redis cache for the allocation date
-    cache_key = f"vehicle:{allocation['vehicle_id']}:date:{allocation['allocation_date']}"
+    cache_key = (
+        f"vehicle:{allocation['vehicle_id']}:date:{allocation['allocation_date']}"
+    )
     await redis.delete(cache_key)
     return True
 
 
 async def get_allocation_history(
-        employee_id: str = None,
-        vehicle_id: str = None,
-        start_date: date = None,
-        end_date: date = None,
-        skip: int = 0,
-        limit: int = 10
+    employee_id: str = None,
+    vehicle_id: str = None,
+    start_date: date = None,
+    end_date: date = None,
+    skip: int = 0,
+    limit: int = 10,
 ):
     query = {}
     if employee_id:
@@ -122,7 +135,11 @@ async def get_allocation_history(
         query["allocation_date"] = {"$lte": end_date}
 
     history = []
-    async for allocation in allocations_collection.find(query).sort("allocation_date", ASCENDING).skip(skip).limit(
-            limit):
+    async for allocation in (
+        allocations_collection.find(query)
+        .sort("allocation_date", ASCENDING)
+        .skip(skip)
+        .limit(limit)
+    ):
         history.append(allocation)
     return history
