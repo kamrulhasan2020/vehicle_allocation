@@ -37,7 +37,7 @@ async def get_allocation_by_vehicle_date(vehicle_id: str, allocation_date: date)
 
 
 # Create allocation
-async def create_allocation(allocation: AllocationModel):
+async def create_allocation(allocation: AllocationModel) -> CreateResponseModel:
     existing_allocation = await get_allocation_by_vehicle_date(
         allocation.vehicle_id,
         datetime.combine(allocation.allocation_date, datetime.min.time()),
@@ -59,7 +59,7 @@ async def create_allocation(allocation: AllocationModel):
 
 
 # Update allocation (only before the allocation date)
-async def update_allocation(allocation_id: str, update_data: AllocationUpdateModel):
+async def update_allocation(allocation_id: str, update_data: AllocationUpdateModel) -> None:
     allocation = await allocations_collection.find_one({"_id": ObjectId(allocation_id)})
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
@@ -91,11 +91,10 @@ async def update_allocation(allocation_id: str, update_data: AllocationUpdateMod
             f"vehicle:{allocation['vehicle_id']}:date:{update_data['allocation_date']}"
         )
         await redis.delete(new_cache_key)
-    return True
 
 
 # Delete allocation (only before the allocation date)
-async def delete_allocation(allocation_id: str):
+async def delete_allocation(allocation_id: str) -> None:
     allocation = await allocations_collection.find_one({"_id": ObjectId(allocation_id)})
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
@@ -113,7 +112,6 @@ async def delete_allocation(allocation_id: str):
         f"vehicle:{allocation['vehicle_id']}:date:{allocation['allocation_date']}"
     )
     await redis.delete(cache_key)
-    return True
 
 
 async def get_allocation_history(
@@ -155,8 +153,6 @@ async def get_allocation_history(
     # Extract total count and data
     total_count = result[0]["count"][0]["total"] if result and result[0]["count"] else 0
     history = result[0]["data"]
-    print("------------")
-    print(history)
     # Determine if there's a next page
     has_more = (skip + limit) < total_count
 

@@ -1,7 +1,6 @@
 from datetime import date
 
 from fastapi import FastAPI, Query
-from typing import List
 
 from .models import (
     AllocationModel,
