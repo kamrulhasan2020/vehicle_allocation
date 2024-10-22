@@ -1,6 +1,15 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from typing import List
-from .models import AllocationModel, AllocationResponseModel, AllocationUpdateModel, FilterModel
+
+from .database import init_redis, close_redis
+from .models import (
+    AllocationModel,
+    AllocationResponseModel,
+    AllocationUpdateModel,
+    FilterModel,
+)
 from .crud import (
     create_allocation,
     update_allocation,
@@ -8,7 +17,19 @@ from .crud import (
     get_allocation_history,
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # On startup: Initialize Redis
+    await init_redis()
+    yield  # The application runs after this point.
+
+    # On shutdown: Close Redis connection
+    await close_redis()
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 
 @app.post("/allocate/")
