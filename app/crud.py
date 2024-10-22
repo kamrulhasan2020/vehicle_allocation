@@ -1,11 +1,13 @@
 import json
 from datetime import date, datetime, timezone
+
 from fastapi import HTTPException
 from bson import ObjectId
 from pymongo import ASCENDING
 
 from .database import allocations_collection, redis
-from .models import AllocationModel, AllocationUpdateModel, FilterModel
+from .models import AllocationModel, AllocationUpdateModel
+from .utils import CustomJSONEncoder
 
 
 # Helper to retrieve allocation by vehicle and date
@@ -23,7 +25,7 @@ async def get_allocation_by_vehicle_date(vehicle_id: int, allocation_date: date)
     )
     # Cache the result in Redis
     if allocation:
-        await redis.set(cache_key, json.dumps(allocation), expire=3600)  # Set cache expiry for 1 hour
+        await redis.set(cache_key, json.dumps(allocation,cls=CustomJSONEncoder), ex=3600)  # Set cache expiry for 1 hour
     return allocation
 
 # Create allocation
@@ -54,7 +56,7 @@ async def update_allocation(allocation_id: str, update_data: AllocationUpdateMod
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
 
-    if allocation["allocation_date"] <= datetime.utcnow():
+    if allocation["allocation_date"] <= datetime.combine(datetime.now(timezone.utc).date(), datetime.min.time()):
         raise HTTPException(
             status_code=400, detail="Cannot update past or current date allocations"
         )
@@ -69,7 +71,7 @@ async def update_allocation(allocation_id: str, update_data: AllocationUpdateMod
         await allocations_collection.update_one(
             {"_id": ObjectId(allocation_id)}, {"$set": update_data}
         )
-    # Invalidate Redis cache for the old and new dates (if date changed)
+    # Invalidate Redis cache for the old and new dates
     old_cache_key = f"vehicle:{allocation['vehicle_id']}:date:{allocation['allocation_date']}"
     await redis.delete(old_cache_key)
     if "allocation_date" in update_data:
@@ -84,37 +86,43 @@ async def delete_allocation(allocation_id: str):
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
 
-    if allocation["allocation_date"] <= datetime.utcnow():
+    if allocation["allocation_date"] <= datetime.combine(datetime.now(timezone.utc).date(), datetime.min.time()):
         raise HTTPException(
             status_code=400, detail="Cannot delete past or current date allocations"
         )
 
     await allocations_collection.delete_one({"_id": ObjectId(allocation_id)})
+    # Invalidate Redis cache for the allocation date
+    cache_key = f"vehicle:{allocation['vehicle_id']}:date:{allocation['allocation_date']}"
+    await redis.delete(cache_key)
     return True
 
 
-# Get allocation history with filters
-async def get_allocation_history(filters: FilterModel):
+async def get_allocation_history(
+        employee_id: str = None,
+        vehicle_id: str = None,
+        start_date: date = None,
+        end_date: date = None,
+        skip: int = 0,
+        limit: int = 10
+):
     query = {}
-    if filters.employee_id:
-        query["employee_id"] = filters.employee_id
-    if filters.vehicle_id:
-        query["vehicle_id"] = filters.vehicle_id
-    if filters.driver_id:
-        query["driver_id"] = filters.driver_id
-    if filters.start_date and filters.end_date:
+    if employee_id:
+        query["employee_id"] = employee_id
+    if vehicle_id:
+        query["vehicle_id"] = vehicle_id
+    if start_date and end_date:
         query["allocation_date"] = {
-            "$gte": datetime.combine(filters.start_date, datetime.min.time()),
-            "$lte": datetime.combine(filters.end_date, datetime.min.time()),
+            "$gte": datetime.combine(start_date, datetime.min.time()),
+            "$lte": datetime.combine(end_date, datetime.min.time()),
         }
-    elif filters.start_date:
-        query["allocation_date"] = {"$gte": filters.start_date}
-    elif filters.end_date:
-        query["allocation_date"] = {"$lte": filters.end_date}
+    elif start_date:
+        query["allocation_date"] = {"$gte": start_date}
+    elif end_date:
+        query["allocation_date"] = {"$lte": end_date}
 
     history = []
-    async for allocation in allocations_collection.find(query).sort(
-        "allocation_date", ASCENDING
-    ):
+    async for allocation in allocations_collection.find(query).sort("allocation_date", ASCENDING).skip(skip).limit(
+            limit):
         history.append(allocation)
     return history
