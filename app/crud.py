@@ -1,9 +1,7 @@
 import json
 from datetime import date, datetime, timezone
-
 from fastapi import HTTPException
 from bson import ObjectId
-from pymongo import ASCENDING
 
 from .database import allocations_collection, redis
 from .models import (
@@ -17,6 +15,16 @@ from .utils import CustomJSONEncoder
 
 # Helper to retrieve allocation by vehicle and date
 async def get_allocation_by_vehicle_date(vehicle_id: str, allocation_date: date):
+    """
+    Retrieve allocation by vehicle ID and allocation date, checking the cache first.
+
+    Parameters:
+    - vehicle_id (str): The ID of the vehicle.
+    - allocation_date (date): The date of the allocation.
+
+    Returns:
+    - dict: The allocation details or None if not found.
+    """
     # Create cache key
     cache_key = f"vehicle:{vehicle_id}:date:{allocation_date}"
 
@@ -38,6 +46,18 @@ async def get_allocation_by_vehicle_date(vehicle_id: str, allocation_date: date)
 
 # Create allocation
 async def create_allocation(allocation: AllocationModel) -> CreateResponseModel:
+    """
+    Create a new vehicle allocation if it doesn't already exist for the given date.
+
+    Parameters:
+    - allocation (AllocationModel): The allocation details to create.
+
+    Returns:
+    - CreateResponseModel: The response model containing the ID of the new allocation.
+
+    Raises:
+    - HTTPException: If the vehicle is already allocated for the date.
+    """
     existing_allocation = await get_allocation_by_vehicle_date(
         allocation.vehicle_id,
         datetime.combine(allocation.allocation_date, datetime.min.time()),
@@ -60,6 +80,16 @@ async def create_allocation(allocation: AllocationModel) -> CreateResponseModel:
 
 # Update allocation (only before the allocation date)
 async def update_allocation(allocation_id: str, update_data: AllocationUpdateModel) -> None:
+    """
+    Update an existing vehicle allocation.
+
+    Parameters:
+    - allocation_id (str): The ID of the allocation to update.
+    - update_data (AllocationUpdateModel): The updated allocation details.
+
+    Raises:
+    - HTTPException: If the allocation does not exist or if trying to update a past allocation.
+    """
     allocation = await allocations_collection.find_one({"_id": ObjectId(allocation_id)})
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
@@ -95,6 +125,15 @@ async def update_allocation(allocation_id: str, update_data: AllocationUpdateMod
 
 # Delete allocation (only before the allocation date)
 async def delete_allocation(allocation_id: str) -> None:
+    """
+    Delete an existing vehicle allocation.
+
+    Parameters:
+    - allocation_id (str): The ID of the allocation to delete.
+
+    Raises:
+    - HTTPException: If the allocation does not exist or if trying to delete a past allocation.
+    """
     allocation = await allocations_collection.find_one({"_id": ObjectId(allocation_id)})
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")
@@ -122,6 +161,20 @@ async def get_allocation_history(
     skip: int = 0,
     limit: int = 10,
 ):
+    """
+    Retrieve allocation history based on provided filters.
+
+    Parameters:
+    - employee_id (str, optional): Filter by employee ID.
+    - vehicle_id (str, optional): Filter by vehicle ID.
+    - start_date (date, optional): Filter for allocations on or after this date.
+    - end_date (date, optional): Filter for allocations on or before this date.
+    - skip (int, optional): Number of records to skip for pagination (default is 0).
+    - limit (int, optional): Maximum number of records to return (default is 10).
+
+    Returns:
+    - PaginatedResponse: Contains the allocation history and pagination info.
+    """
     query = {}
     if employee_id:
         query["employee_id"] = employee_id
@@ -137,7 +190,7 @@ async def get_allocation_history(
     elif end_date:
         query["allocation_date"] = {"$lte": end_date}
 
-        # Use aggregation to count and fetch results
+    # Use aggregation to count and fetch results
     pipeline = [
         {"$match": query},  # Filter based on query
         {
