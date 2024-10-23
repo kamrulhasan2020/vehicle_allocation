@@ -165,7 +165,7 @@ async def get_allocation_history(
 ):
     """
     Retrieve allocation history based on provided filters.
-
+    This is not cached , as frequent read and update may cause overhead
     Parameters:
     - employee_id (str, optional): Filter by employee ID.
     - vehicle_id (str, optional): Filter by vehicle ID.
@@ -177,6 +177,7 @@ async def get_allocation_history(
     Returns:
     - PaginatedResponse: Contains the allocation history and pagination info.
     """
+    # This is not cached , as frequent read and update may cause overhead.
     query = {}
     if employee_id:
         query["employee_id"] = employee_id
