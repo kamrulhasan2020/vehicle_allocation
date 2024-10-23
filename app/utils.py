@@ -1,6 +1,18 @@
 import json
 from datetime import datetime
 from bson import ObjectId
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    MONGO_URL: str
+    REDIS_URL: str
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()
 
 
 class CustomJSONEncoder(json.JSONEncoder):
@@ -33,4 +45,3 @@ class CustomJSONEncoder(json.JSONEncoder):
             return obj.isoformat()
         # Call the default method for all other objects
         return super().default(obj)
-

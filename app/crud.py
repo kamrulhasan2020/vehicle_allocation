@@ -41,7 +41,7 @@ async def get_allocation_by_vehicle_date(vehicle_id: str, allocation_date: date)
         await redis.set(
             cache_key, json.dumps(allocation, cls=CustomJSONEncoder), ex=3600
         )  # Set cache expiry for 1 hour
-    return allocation
+        return allocation
 
 
 # Create allocation
@@ -79,7 +79,9 @@ async def create_allocation(allocation: AllocationModel) -> CreateResponseModel:
 
 
 # Update allocation (only before the allocation date)
-async def update_allocation(allocation_id: str, update_data: AllocationUpdateModel) -> None:
+async def update_allocation(
+    allocation_id: str, update_data: AllocationUpdateModel
+) -> None:
     """
     Update an existing vehicle allocation.
 

@@ -15,6 +15,7 @@ class AllocationModel(BaseModel):
     - vehicle_id (str): The ID of the vehicle being allocated.
     - allocation_date (date): The date of the allocation.
     """
+
     employee_id: str
     vehicle_id: str
     allocation_date: date
@@ -29,6 +30,7 @@ class AllocationResponseModel(AllocationModel):
     Attributes:
     - id (Optional[PyObjectId]): The unique identifier for the allocation.
     """
+
     model_config = ConfigDict(from_attributes=True)
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
 
@@ -44,6 +46,7 @@ class PaginatedResponse(BaseModel):
     - limit (int): Number of records per page.
     - has_more (bool): Indicates if there are more records available.
     """
+
     data: List[AllocationResponseModel]
     total: int
     skip: int
@@ -59,6 +62,7 @@ class AllocationUpdateModel(BaseModel):
     - employee_id (Optional[str]): New employee ID, if updating.
     - allocation_date (Optional[date]): New allocation date, if updating.
     """
+
     employee_id: Optional[str] = None
     allocation_date: Optional[date] = None
 
@@ -70,4 +74,5 @@ class CreateResponseModel(BaseModel):
     Attributes:
     - id (str): The unique identifier of the newly created allocation.
     """
+
     id: str
